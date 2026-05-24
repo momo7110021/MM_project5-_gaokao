@@ -1,0 +1,27 @@
+广东数据全量清单（19 个文件，4.5 MB）
+一分一段表（10 个）
+文件	年份	科类	人数	分数顶	来源
+gd_segment_2025_物理类.csv	2025	物理	44万	697	✅ 官方PDF解析
+gd_segment_2025_历史类.csv	2025	历史	29万	672	✅ 官方PDF解析
+gd_segment_2024_physics.csv	2024	物理	45万	695	✅ 官方PDF解析
+gd_segment_2024_history.csv	2024	历史	27万	665	✅ 官方PDF解析
+gd_segment_2023_物理类.csv	2023	物理	43万	695	⚠️ 推估(PDF已下载32MB未解析)
+gd_segment_2023_历史类.csv	2023	历史	29万	665	⚠️ 推估
+gd_segment_2022_物理类.csv	2022	物理	40万	700	✅ 官方PDF解析
+gd_segment_2022_历史类.csv	2022	历史	27万	660	✅ 官方PDF解析
+gd_segment_2021_物理类.csv	2021	物理	39万	695	⚠️ 推估(官网不在线)
+gd_segment_2021_历史类.csv	2021	历史	27万	665	⚠️ 推估
+本科投档线（4 个）
+文件	年份	科目	记录数	院校数	分数范围
+gd_admission_line_2024_物理类.csv	2024	物理	2,891 组	938 校	421-692
+gd_admission_line_2024_历史类.csv	2024	历史	1,443 组	—	—
+gd_admission_line_2023_物理类.csv	2023	物理	2,434 组	954 校	423-694
+gd_admission_line_2023_历史类.csv	2023	历史	1,381 组	—	421-674
+其他数据（5 个）
+文件	内容	来源
+gd_school_info.csv	983校代码+名称+城市	从投档线提取
+gd_admission_plan_2024.csv	招生计划 5,781 条	模拟(基于真实校码)
+gd_major_admission.csv	4 年专业录取位次 34,692 条	模拟(基于真实校码)
+gd_major_employment.csv	19 专业×3 年就业率/薪资	参考(公开报告+麦可思)
+gd_city_data.csv	广东 20 市 GDP/薪资/高新企业	真实(省统计年鉴)
+总结：data/ 目录 19 个 CSV，其中 8 个文件来自官方 PDF 真实数据（段表 3 年 + 投档线 2 年），其余推估或模拟。

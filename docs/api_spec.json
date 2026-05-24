@@ -1,0 +1,249 @@
+{
+  "api_name": "gaokao_volunteer_recommendation",
+  "version": "v3.0.0",
+  "description": "基于大数据和AI的高考志愿填报多目标推荐模型 - 统一输出接口规范。所有数据均为模拟数据，仅供教学和测试使用。",
+  "author": "Project 5 Team",
+  "input_schema": {
+    "required": ["candidate_id", "province", "year", "subject_type", "score", "rank", "risk_preference"],
+    "optional": ["preferred_cities", "excluded_majors", "family_budget", "accept_adjustment", "accept_sino_foreign", "accept_far_city", "employment_first", "postgraduate_first", "interest_direction", "strong_subjects"],
+    "fields": {
+      "candidate_id": {"type": "string", "description": "考生唯一标识(UUID)", "example": "cand_2024_hebei_001"},
+      "province": {"type": "string", "description": "考生所在省份", "example": "河北省"},
+      "year": {"type": "integer", "description": "高考年份", "example": 2024, "range": [2020, 2100]},
+      "subject_type": {"type": "string", "description": "科类或选科组合", "enum": ["物理类", "历史类", "综合类"], "example": "物理类"},
+      "score": {"type": "integer", "description": "高考总分", "example": 620, "range": [0, 750]},
+      "rank": {"type": "integer", "description": "全省位次", "example": 8500, "range": [1, 99999999]},
+      "risk_preference": {"type": "string", "description": "风险偏好", "enum": ["aggressive", "balanced", "conservative"], "example": "balanced"},
+      "preferred_cities": {"type": "array(string)", "description": "偏好城市列表", "example": ["北京", "上海"]},
+      "excluded_majors": {"type": "array(string)", "description": "排斥专业名称或代码", "example": ["哲学", "历史学"]},
+      "family_budget": {"type": "integer", "description": "家庭年预算上限(元)", "example": 20000},
+      "accept_adjustment": {"type": "integer", "description": "是否接受调剂 0=否 1=是", "example": 1, "enum": [0, 1]},
+      "accept_sino_foreign": {"type": "integer", "description": "是否接受中外合作办学 0=否 1=是", "example": 0, "enum": [0, 1]},
+      "accept_far_city": {"type": "integer", "description": "是否接受远距离城市 0=否 1=是", "example": 1, "enum": [0, 1]},
+      "employment_first": {"type": "integer", "description": "是否就业优先 0=否 1=是", "example": 0, "enum": [0, 1]},
+      "postgraduate_first": {"type": "integer", "description": "是否读研优先 0=否 1=是", "example": 1, "enum": [0, 1]},
+      "interest_direction": {"type": "array(string)", "description": "兴趣方向", "example": ["计算机", "电子信息"]},
+      "strong_subjects": {"type": "array(string)", "description": "优势科目", "example": ["数学", "物理"]}
+    }
+  },
+  "output_schema": {
+    "meta": {
+      "type": "object",
+      "description": "元信息",
+      "fields": {
+        "model_version": {"type": "string", "example": "v3.0.0"},
+        "generate_time": {"type": "string", "description": "生成时间 ISO8601", "example": "2026-05-15 20:00:00"},
+        "project": {"type": "string", "description": "项目名称"},
+        "data_disclaimer": {"type": "string", "description": "数据免责声明"}
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "description": "考生信息块(含等效换算结果)",
+      "fields": {
+        "candidate_id": {"type": "string"},
+        "province": {"type": "string"},
+        "year": {"type": "integer"},
+        "subject_type": {"type": "string"},
+        "score": {"type": "integer", "range": [0, 750]},
+        "rank": {"type": "integer"},
+        "equivalent_scores": {"type": "object", "description": "各年等效分明细 {year: {equivalent_score, equivalent_score_raw}}"},
+        "equivalent_score": {"type": "number", "description": "加权等效分", "range": [0, 750]},
+        "equivalent_score_interval": {"type": "array(number,2)", "description": "95% CI 等效分区间", "example": [610.0, 628.4]},
+        "equivalent_rank": {"type": "integer", "description": "等效位次"},
+        "confidence_level": {"type": "string", "enum": ["high", "medium", "low"]},
+        "abnormal_year_warning": {"type": "boolean", "description": "是否存在异常年份"},
+        "fallback_rule": {"type": "string", "description": "回退规则(normal/insufficient_data)"},
+        "risk_preference": {"type": "string", "enum": ["aggressive", "balanced", "conservative"]},
+        "source_trace": {"$ref": "#/output_schema/definitions/source_trace"}
+      }
+    },
+    "recommendation_plan": {
+      "type": "object",
+      "description": "推荐方案",
+      "fields": {
+        "plan_type": {"type": "string", "enum": ["aggressive", "balanced", "conservative"]},
+        "volunteers": {"type": "array", "description": "志愿列表", "items": {"$ref": "#/output_schema/definitions/volunteer_item"}},
+        "statistics": {"$ref": "#/output_schema/definitions/statistics"},
+        "risk_assessment": {"$ref": "#/output_schema/definitions/risk_assessment_block"}
+      }
+    },
+    "definitions": {
+      "source_trace": {
+        "type": "object",
+        "description": "数据来源追溯",
+        "fields": {
+          "source_url": {"type": "string", "description": "数据来源URL或文件路径"},
+          "source_name": {"type": "string", "description": "数据来源标识(segment_table/admission_line/...)"},
+          "crawl_time": {"type": "string", "description": "采集时间"},
+          "data_version": {"type": "string", "description": "数据版本号", "example": "v1.0"},
+          "source_type": {"type": "string", "enum": ["html", "pdf", "excel", "csv", "manual", "simulated", "api", "dynamic"], "description": "来源类型"}
+        }
+      },
+      "volunteer_item": {
+        "type": "object",
+        "description": "单个志愿的完整信息",
+        "fields": {
+          "volunteer_id": {"type": "integer", "description": "志愿序号"},
+          "school_code": {"type": "string", "description": "院校标准代码"},
+          "school_name": {"type": "string", "description": "院校名称"},
+          "major_group_code": {"type": "string", "description": "专业组代码"},
+          "major_code": {"type": "string", "description": "专业标准代码"},
+          "major_name": {"type": "string", "description": "专业名称"},
+          "admit_probability": {"type": "number", "description": "录取概率", "range": [0, 0.99], "note": "绝不输出1.0"},
+          "probability_interval": {"type": "array(number,2)", "description": "概率95%CI区间", "example": [0.50, 0.85]},
+          "recommendation_tier": {"type": "string", "enum": ["rush", "stable", "safe", "bottom"], "description": "推荐等级"},
+          "fit_score": {"type": "number", "range": [0, 1], "description": "专业匹配度"},
+          "career_score": {"type": "number", "range": [0, 1], "description": "就业景气度评分"},
+          "city_score": {"type": "number", "range": [0, 1], "description": "城市价值评分"},
+          "family_score": {"type": "number", "range": [0, 1], "description": "家庭资源匹配度"},
+          "risk_level": {"type": "string", "enum": ["low", "medium", "high", "very_high"], "description": "逐志愿风险等级"},
+          "risk_reason": {"type": "string", "description": "风险原因"},
+          "overall_utility": {"type": "number", "range": [-1, 1], "description": "综合效用值"},
+          "explanation": {"type": "string", "description": "家长端解释文本"},
+          "modification_suggestion": {"type": "string", "description": "修改建议"},
+          "review_required": {"type": "boolean", "description": "是否需要人工复核"},
+          "source_trace": {"$ref": "#/output_schema/definitions/source_trace"}
+        }
+      },
+      "statistics": {
+        "type": "object",
+        "fields": {
+          "rush_count": {"type": "integer", "description": "冲刺志愿数"},
+          "stable_count": {"type": "integer", "description": "稳妥志愿数"},
+          "safe_count": {"type": "integer", "description": "保底志愿数"},
+          "bottom_count": {"type": "integer", "description": "垫底志愿数"},
+          "overall_score": {"type": "number", "description": "综合效用均值"},
+          "overall_risk_level": {"type": "string", "enum": ["low", "medium", "high", "critical"], "description": "综合风险等级"}
+        }
+      },
+      "risk_assessment_block": {
+        "type": "object",
+        "fields": {
+          "overall_risk_score": {"type": "number", "range": [0, 1]},
+          "risk_level": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+          "slip_risk": {"$ref": "#/output_schema/definitions/risk_sub_item"},
+          "withdrawal_risk": {"$ref": "#/output_schema/definitions/risk_sub_item"},
+          "adjustment_risk": {"$ref": "#/output_schema/definitions/risk_sub_item"},
+          "cold_major_risk": {"$ref": "#/output_schema/definitions/risk_sub_item"},
+          "employment_risk": {"$ref": "#/output_schema/definitions/risk_sub_item"},
+          "region_risk": {"$ref": "#/output_schema/definitions/risk_sub_item"},
+          "risk_reason": {"type": "array(string)", "description": "识别到的问题列表(Q1-Q10)"},
+          "modification_suggestion": {"type": "string", "description": "综合修改建议"},
+          "review_required": {"type": "boolean"}
+        }
+      },
+      "risk_sub_item": {
+        "type": "object",
+        "fields": {
+          "score": {"type": "number", "range": [0, 1]},
+          "level": {"type": "string", "enum": ["low", "medium", "high"]},
+          "trigger_reason": {"type": "string", "description": "触发原因"},
+          "modification_suggestion": {"type": "string", "description": "具体修改建议"},
+          "review_required": {"type": "boolean"}
+        }
+      }
+    }
+  },
+  "error_codes": [
+    {"code": "DATA_MISSING", "message": "必填数据缺失(一分一段表/招生计划等)", "http_status": 400},
+    {"code": "INVALID_INPUT", "message": "输入参数不合法(score超出0-750等)", "http_status": 400},
+    {"code": "MODEL_NOT_TRAINED", "message": "模型未训练或训练数据不足", "http_status": 500},
+    {"code": "LOW_CONFIDENCE", "message": "模型输出置信度低(confidence_level=low)，建议人工复核", "http_status": 200},
+    {"code": "REVIEW_REQUIRED", "message": "模型输出触发人工复核标志(review_required=true)", "http_status": 200},
+    {"code": "SOURCE_UNTRACEABLE", "message": "数据来源不可追溯(source_trace不完整)", "http_status": 500},
+    {"code": "INTERNAL_ERROR", "message": "系统内部错误", "http_status": 500}
+  ],
+  "field_sources": {
+    "candidate.equivalent_score": {"model": "模型一:分数-位次等效换算", "table": "segment_table"},
+    "candidate.equivalent_rank": {"model": "模型一:分数-位次等效换算", "table": "segment_table"},
+    "candidate.confidence_level": {"model": "模型一:分数-位次等效换算", "computed": true},
+    "volunteer.admit_probability": {"model": "模型二:录取概率预测", "table": "school_admission_line, major_admission"},
+    "volunteer.recommendation_tier": {"model": "模型二+模型三", "computed": true},
+    "volunteer.career_score": {"model": "模型五:专业就业景气度评价", "table": "major_employment"},
+    "volunteer.city_score": {"model": "城市价值评估", "table": "city_data"},
+    "volunteer.fit_score": {"model": "专业匹配度", "input": "candidate_profile.interest_direction"},
+    "volunteer.family_score": {"model": "家庭匹配度", "input": "candidate_profile.preferred_cities"},
+    "volunteer.overall_utility": {"model": "总效用函数", "computed": true},
+    "risk_assessment.*": {"model": "模型四:风险评估", "computed": true}
+  },
+  "example_response": {
+    "meta": {
+      "model_version": "v3.0.0",
+      "generate_time": "2026-05-15 20:00:00",
+      "project": "Project 5: 基于大数据和AI的高考志愿填报多目标推荐模型",
+      "data_disclaimer": "所有数据均为模拟数据，仅供教学和测试使用"
+    },
+    "candidate": {
+      "candidate_id": "cand_2024_hebei_001",
+      "province": "河北省",
+      "year": 2024,
+      "subject_type": "物理类",
+      "score": 620,
+      "rank": 8500,
+      "equivalent_scores": {"2023": {"equivalent_score": 618.5, "equivalent_score_raw": 620.0}},
+      "equivalent_score": 619.2,
+      "equivalent_score_interval": [610.0, 628.4],
+      "equivalent_rank": 8700,
+      "confidence_level": "high",
+      "abnormal_year_warning": false,
+      "fallback_rule": "normal",
+      "risk_preference": "balanced",
+      "source_trace": {"source_url": "", "source_name": "segment_table", "crawl_time": "2026-05-15 20:00:00", "data_version": "simulated_v3.0", "source_type": "simulated"}
+    },
+    "recommendation_plan": {
+      "plan_type": "balanced",
+      "volunteers": [{
+        "volunteer_id": 1,
+        "school_code": "10003",
+        "school_name": "A理工大学",
+        "major_group_code": "",
+        "major_code": "080901",
+        "major_name": "计算机科学与技术",
+        "admit_probability": 0.6521,
+        "probability_interval": [0.5000, 0.8500],
+        "recommendation_tier": "safe",
+        "fit_score": 0.50,
+        "career_score": 0.85,
+        "city_score": 0.55,
+        "family_score": 0.50,
+        "risk_level": "low",
+        "risk_reason": "保底志愿",
+        "overall_utility": 0.2845,
+        "explanation": "报考A理工大学的计算机科学与技术专业，预估录取概率约65%（区间50%-85%），属于保（基本能够被录取）。建议结合个人兴趣和职业规划综合考虑。",
+        "modification_suggestion": "该志愿较稳定，可考虑作为主要选择。",
+        "review_required": false,
+        "source_trace": {"source_url": "", "source_name": "admission_plan", "crawl_time": "2026-05-15 20:00:00", "data_version": "simulated_v3.0", "source_type": "simulated"}
+      }],
+      "statistics": {
+        "rush_count": 8,
+        "stable_count": 12,
+        "safe_count": 12,
+        "bottom_count": 8,
+        "overall_score": 0.2503,
+        "overall_risk_level": "medium"
+      },
+      "risk_assessment": {
+        "overall_risk_score": 0.1805,
+        "risk_level": "medium",
+        "slip_risk": {"score": 0.0500, "level": "low", "trigger_reason": "", "modification_suggestion": "", "review_required": false},
+        "withdrawal_risk": {"score": 0.0200, "level": "low", "trigger_reason": "", "modification_suggestion": "", "review_required": false},
+        "adjustment_risk": {"score": 0.1500, "level": "medium", "trigger_reason": "专业组内部冷热差异大", "modification_suggestion": "建议关注调剂规则", "review_required": false},
+        "cold_major_risk": {"score": 0.1000, "level": "low", "trigger_reason": "", "modification_suggestion": "", "review_required": false},
+        "employment_risk": {"score": 0.0800, "level": "low", "trigger_reason": "", "modification_suggestion": "", "review_required": false},
+        "region_risk": {"score": 0.1200, "level": "low", "trigger_reason": "", "modification_suggestion": "", "review_required": false},
+        "risk_reason": ["Q2: 稳志愿过少"],
+        "modification_suggestion": "建议增加至少2个保或垫级别志愿",
+        "review_required": false
+      }
+    }
+  },
+  "notes": [
+    "所有数据均为模拟数据，仅供教学和测试使用",
+    "admit_probability 上限为 0.99，绝不输出 1.0 或 100%",
+    "recommendation_tier 由模型二和模型三联合决定，以模型二的概率映射为准",
+    "risk_assessment 中六类风险各为独立 dict，含 score/level/trigger_reason/modification_suggestion/review_required",
+    "source_trace 每行必含 5 字段(source_url/source_name/crawl_time/data_version/source_type)",
+    "真实上线前必须使用按省份、科类、选科组合分层的历史数据重新训练、回测和校准"
+  ]
+}
